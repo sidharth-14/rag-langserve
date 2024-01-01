@@ -1,0 +1,12 @@
+version: '1'
+
+services:
+  server:
+    build:
+      context: .
+    image: my-langserve:latest
+    container_name: my-langserve
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
