@@ -1,71 +1,113 @@
-import pinecone
 from langchain.prompts import ChatPromptTemplate
 from langchain.llms.huggingface_hub import HuggingFaceHub
-from langchain.embeddings import HuggingFaceHubEmbeddings, OpenAIEmbeddings
-from langchain.document_loaders import PyPDFLoader, UnstructuredPDFLoader, OnlinePDFLoader, DuckDBLoader
-from langchain.vectorstores.faiss import FAISS
-from langchain.vectorstores.chroma import Chroma
-from langchain.vectorstores.elasticsearch import ElasticsearchStore
-from langchain.vectorstores.pinecone import Pinecone
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-import os
-cwd = os.getcwd()
-
-langserve_facts = [
-    """Introduction
-Language models have transformed the way we interact with computers. From chatbots to virtual assistants, these models are the brains behind many of our favorite applications. But taking an idea from a prototype to a real-world application can be a daunting task, especially if youre not a machine learning expert. Thats where LangServe comes in.
-
-What is LangServe?
-LangServe is a powerful tool that simplifies the deployment of language models. Its like turning your language model prototype into a real, working application. Think of it as the bridge that connects your brilliant idea with the people who can benefit from it.
-
-Why LangServe Matters
-Imagine youve built a chatbot that can help answer questions. Youve created it in a notebook, tested it, and it works like a charm. But now, you want to share it with the world. Thats where LangServe comes in. It takes your prototype and turns it into a full-fledged application.
-
-Heres why this is a game-changer:
-
-1. Fast and Easy Deployment
-
-LangServe makes deploying your language model quick and painless. You can go from a simple prototype to a real application thats ready for users in no time.
-
-2. No Coding Hassles
-
-You dont need to be a coding guru to use LangServe. Its designed to be user-friendly and doesnt require a deep understanding of complex programming.
-
-3. Scaling Made Simple
-
-LangServe ensures your application can handle multiple requests simultaneously. Its ready for production-level usage without any extra headaches.
-
-4. Intermediate Results Access
-
-Sometimes, you might want to see whats happening inside your application, even before the final result is ready. LangServe offers a way to check these intermediate steps, making it a great tool for debugging and improving your application.
-"""]
-loader = DuckDBLoader("""SELECT * FROM read_parquet('./docs/*.parquet')""")
-# loader = PyPDFLoader("./docs/field-guide-to-data-science.pdf")
-# loader = OnlinePDFLoader("https://wolfpaulus.com/wp-content/uploads/2017/05/field-guide-to-data-science.pdf")
-data=loader.load()
-
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=0)
-texts = text_splitter.split_documents(data)
-print(f"New document number: {len(texts)}")
-
+from langchain.embeddings import HuggingFaceHubEmbeddings
+from langchain.vectorstores.faiss import FAISS
+import requests
+import geocoder
+from math import radians, sin, cos, sqrt, atan2
 
 hf_api_token="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"
-repo_id= "TinyLlama/TinyLlama-1.1B-Chat-v1.0" #"codellama/CodeLlama-7b-hf"
-# embedding = OpenAIEmbeddings()
+repo_id=  "TinyLlama/TinyLlama-1.1B-Chat-v1.0"       #"codellama/CodeLlama-7b-hf"
+
+def get_current_location():
+    location = geocoder.ip('me')
+    latitude = location.latlng[0]
+    longitude = location.latlng[1]
+    return latitude, longitude
+
+def places_distance(lat1, lon1, lat2, lon2):
+    # Radius of the Earth in kilometers
+    R = 6371.0
+
+    # Convert coordinates from degrees to radians
+    lat1_rad = radians(lat1)
+    lon1_rad = radians(lon1)
+    lat2_rad = radians(lat2)
+    lon2_rad = radians(lon2)
+
+    # Calculate the differences between latitudes and longitudes
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+
+    # Haversine formula
+    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    # Calculate the distance
+    distance = R * c
+
+    return distance
+
+def get_elevation_data(latitude, longitude):
+    api_url = "http://115.112.141.157:8585/elevation_query"
+    input_data = {
+        "latitude": latitude,
+        "longitude": longitude
+    }
+    response = requests.post(api_url, json=input_data)
+    data = response.json()
+    # Extract elevation from the results
+    elevation = None
+    if "results" in data and data["results"]:
+        elevation = data["results"][0].get("elevation")
+        return elevation
+    else:
+        print(f"Error: {response.status_code} - {response.text}")
+        return None
+    
+def get_places_data():
+    current_latitude, current_longitude = get_current_location()
+    api_url = "http://115.112.141.157:8686/overpass_query"
+    input_data = {
+        "radius": 1000,
+        "latitude": current_latitude,
+        "longitude": current_longitude,
+        "tags": [
+                    {
+                        "name": "amenity",
+                        "value": ""
+                    }
+                ]
+            }
+    # Make the API call
+    response = requests.post(api_url, json=input_data)
+    
+    if response.status_code == 200:
+        # Parse the JSON response
+        data = response.json()
+
+        # Extract and store latitude, longitude, and amenity name
+        data_list = []
+        for element in data.get("elements", []):
+            if element["type"] == "node" and "lat" in element and "lon" in element and "tags" in element:
+                latitude = element["lat"]
+                longitude = element["lon"]
+                amenity = element["tags"].get("amenity", "")
+                name = element["tags"].get("name", "")
+                
+                elevation = get_elevation_data(latitude,longitude)
+
+                distance = places_distance(current_latitude, current_longitude, latitude, longitude)
+
+                data_list.append(f'''"name": "{name}", "amenity":"{amenity}", "latitude": "{latitude}", "longitude": "{longitude}", "elevation": "{elevation}", "distance": {distance:.6f}''')
+
+        # Sort the list based on distance
+        data_list.sort(key=lambda x: float(x.split(':')[-1].strip()))
+        return data_list
+    
+    else:
+        print(f"Error: {response.status_code} - {response.text}")
+
+data = get_places_data()
+
+
 embedding=HuggingFaceHubEmbeddings(huggingfacehub_api_token=hf_api_token,)
-pinecone.init(api_key="489869ae-cdee-4522-9efe-ab76364c72a9", 
-              environment="gcp-starter")
-index_name="langchain"
-
 vectorstore = FAISS.from_texts(
-    # texts=texts,
-    [t.page_content for t in texts], 
-    embedding=embedding,
-    # index_name=index_name
+    texts=data,
+    embedding=embedding
 )
-
 
 retriever = vectorstore.as_retriever()
 
@@ -74,13 +116,11 @@ llm = HuggingFaceHub(
     huggingfacehub_api_token=hf_api_token,
 )
 
-
-template = """Answer the question based only on the following context:
+template = """Answer the following question based on the context:
 {context}
 Question: {question}.
 """
 prompt = ChatPromptTemplate.from_template(template)
-
 
 # RAG
 chain = (
