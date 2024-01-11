@@ -116,6 +116,7 @@ llm = HuggingFaceHub(
     huggingfacehub_api_token=hf_api_token,
 )
 
+
 template = """Answer the following question based on the context:
 {context}
 Question: {question}.
