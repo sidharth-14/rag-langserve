@@ -5,3 +5,5 @@ faiss-cpu==1.7.4
 geocoder==1.38.1
 einops==0.7.0
 transformers==4.36.1
+safetensors==0.4.1
+accelerate==0.25.0

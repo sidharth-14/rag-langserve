@@ -1,9 +1,10 @@
-version: '1'
+version: '3' 
 
 services:
   server:
     build:
       context: .
+      dockerfile: Dockerfile 
     image: my-langserve:latest
     container_name: my-langserve
     ports:

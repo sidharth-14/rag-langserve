@@ -9,7 +9,7 @@ import geocoder
 from math import radians, sin, cos, sqrt, atan2
 
 hf_api_token="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"
-repo_id= "Jiayi-Pan/Tiny-Vicuna-1B" #"TinyLlama/TinyLlama-1.1B-Chat-v1.0"       #"codellama/CodeLlama-7b-hf"
+repo_id= "Jiayi-Pan/Tiny-Vicuna-1B" 
 
 def get_current_location():
     location = geocoder.ip('me')
@@ -102,7 +102,6 @@ def get_places_data():
 
 data = get_places_data()
 
-
 embedding=HuggingFaceHubEmbeddings(huggingfacehub_api_token=hf_api_token,)
 vectorstore = FAISS.from_texts(
     texts=data,
@@ -116,10 +115,10 @@ llm = HuggingFaceHub(
     huggingfacehub_api_token=hf_api_token,
 )
 
-
-template = """Answer the following question based on the context:
+template = """Answer the question based on the following context:
 {context}
-Question: {question}.
+
+Question: {question}
 """
 prompt = ChatPromptTemplate.from_template(template)
 
