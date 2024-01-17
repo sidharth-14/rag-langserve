@@ -79,7 +79,7 @@ docker run -e OPENAI_API_KEY=$OPENAI_API_KEY -p 8080:8080 my-langserve-app
 ```
 
 
-
+cd my-langserve/
 
 docker build . -t langserve:latest
 

@@ -9,7 +9,7 @@ import geocoder
 from math import radians, sin, cos, sqrt, atan2
 
 hf_api_token="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"
-repo_id=  "TinyLlama/TinyLlama-1.1B-Chat-v1.0"       #"codellama/CodeLlama-7b-hf"
+repo_id= "Jiayi-Pan/Tiny-Vicuna-1B" #"TinyLlama/TinyLlama-1.1B-Chat-v1.0"       #"codellama/CodeLlama-7b-hf"
 
 def get_current_location():
     location = geocoder.ip('me')
