@@ -7,6 +7,11 @@ from langchain.vectorstores.faiss import FAISS
 import requests
 import geocoder
 from math import radians, sin, cos, sqrt, atan2
+import os
+from dotenv import load_dotenv
+
+# hf_api_token = os.getenv("HF_API_TOKEN")
+# repo_id = os.getenv("REPO_ID")
 
 hf_api_token="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"
 repo_id= "Jiayi-Pan/Tiny-Vicuna-1B" 
@@ -91,7 +96,7 @@ def get_places_data():
 
                 distance = places_distance(current_latitude, current_longitude, latitude, longitude)
 
-                data_list.append(f'''"name": "{name}", "amenity":"{amenity}", "latitude": "{latitude}", "longitude": "{longitude}", "elevation": "{elevation}", "distance": {distance:.6f}''')
+                data_list.append(f'''name: {name}, amenity:{amenity}, latitude: {latitude}, longitude: {longitude}, elevation: {elevation}, distance: {distance:.6f}''')
 
         # Sort the list based on distance
         data_list.sort(key=lambda x: float(x.split(':')[-1].strip()))
@@ -101,6 +106,7 @@ def get_places_data():
         print(f"Error: {response.status_code} - {response.text}")
 
 data = get_places_data()
+print(f"places data {data}")
 
 embedding=HuggingFaceHubEmbeddings(huggingfacehub_api_token=hf_api_token,)
 vectorstore = FAISS.from_texts(
